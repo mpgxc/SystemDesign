@@ -1,0 +1,576 @@
+import type { ComponentCategory, ComponentSpec, FieldSpec } from './types';
+
+const text = (key: string, label: string, placeholder?: string, help?: string): FieldSpec => ({
+  key,
+  label,
+  type: 'text',
+  placeholder,
+  help,
+});
+
+const area = (key: string, label: string, placeholder?: string): FieldSpec => ({
+  key,
+  label,
+  type: 'textarea',
+  placeholder,
+});
+
+const select = (key: string, label: string, options: string[], help?: string): FieldSpec => ({
+  key,
+  label,
+  type: 'select',
+  options,
+  help,
+});
+
+export interface CategorySpec {
+  id: ComponentCategory;
+  label: string;
+  hint: string;
+  accent: string;
+  soft: string;
+}
+
+/** Paleta por categoria — usada nos nos, na paleta lateral e nas legendas. */
+export const CATEGORIES: CategorySpec[] = [
+  { id: 'client', label: 'Clientes & Canais', hint: 'Quem inicia as chamadas', accent: '#38bdf8', soft: 'rgba(56,189,248,0.14)' },
+  { id: 'edge', label: 'Borda & Roteamento', hint: 'Entrada do trafego', accent: '#a78bfa', soft: 'rgba(167,139,250,0.14)' },
+  { id: 'compute', label: 'Aplicacao & Servicos', hint: 'Onde a regra de negocio roda', accent: '#34d399', soft: 'rgba(52,211,153,0.14)' },
+  { id: 'scheduling', label: 'Agendamento & Batch', hint: 'Trabalho disparado por tempo', accent: '#f472b6', soft: 'rgba(244,114,182,0.14)' },
+  { id: 'messaging', label: 'Mensageria & Eventos', hint: 'Comunicacao assincrona', accent: '#fbbf24', soft: 'rgba(251,191,36,0.14)' },
+  { id: 'data', label: 'Dados & Persistencia', hint: 'Estado do sistema', accent: '#60a5fa', soft: 'rgba(96,165,250,0.14)' },
+  { id: 'observability', label: 'Observabilidade', hint: 'Sinais de producao', accent: '#22d3ee', soft: 'rgba(34,211,238,0.14)' },
+  { id: 'security', label: 'Seguranca & Config', hint: 'Identidade e governanca', accent: '#fb7185', soft: 'rgba(251,113,133,0.14)' },
+];
+
+export const CATEGORY_BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
+
+export const COMPONENTS: ComponentSpec[] = [
+  // ---------------------------------------------------------------- clientes
+  {
+    kind: 'web-app',
+    label: 'Web App (SPA)',
+    category: 'client',
+    icon: 'Monitor',
+    shape: 'rect',
+    description: 'Front-end que consome as APIs publicas.',
+    keywords: ['frontend', 'spa', 'browser', 'react'],
+    fields: [text('platform', 'Plataforma', 'React + Vite'), text('auth', 'Autenticacao', 'OIDC + PKCE')],
+  },
+  {
+    kind: 'mobile-app',
+    label: 'Mobile App',
+    category: 'client',
+    icon: 'Smartphone',
+    shape: 'rect',
+    description: 'Cliente nativo ou hibrido.',
+    keywords: ['ios', 'android', 'app'],
+    fields: [text('platform', 'Plataforma', 'iOS / Android'), text('offline', 'Estrategia offline', 'fila local + sync')],
+  },
+  {
+    kind: 'external-system',
+    label: 'Sistema Externo',
+    category: 'client',
+    icon: 'Globe',
+    shape: 'hexagon',
+    description: 'Parceiro ou SaaS fora do seu controle.',
+    keywords: ['terceiro', 'parceiro', 'saas', 'integracao'],
+    fields: [text('owner', 'Responsavel', 'Gateway de pagamento'), text('sla', 'SLA', '99.9% / p99 800ms'), area('contract', 'Contrato', 'POST /charges — idempotency-key obrigatorio')],
+  },
+  {
+    kind: 'cdn',
+    label: 'CDN / Edge Cache',
+    category: 'edge',
+    icon: 'Cloud',
+    shape: 'stadium',
+    description: 'Distribuicao de conteudo estatico na borda.',
+    keywords: ['cache', 'estatico', 'cloudfront'],
+    fields: [text('provider', 'Provedor', 'CloudFront'), text('cacheTtl', 'TTL', '5m')],
+  },
+
+  // ------------------------------------------------------------------- borda
+  {
+    kind: 'api-gateway',
+    label: 'API Gateway',
+    category: 'edge',
+    icon: 'DoorOpen',
+    shape: 'rect',
+    description: 'Roteia, autentica e limita o trafego de entrada.',
+    keywords: ['kong', 'gateway', 'entrada'],
+    techHint: 'Kong / Envoy / AWS API Gateway',
+    fields: [
+      select('provider', 'Provedor', ['Kong', 'AWS API Gateway', 'NGINX', 'Traefik', 'Envoy', 'Apigee']),
+      area('routes', 'Rotas', '/orders/* -> orders-api\n/payments/* -> payments-api'),
+      select('authMode', 'Autenticacao', ['JWT', 'OAuth2 introspection', 'mTLS', 'API key', 'nenhuma']),
+    ],
+  },
+  {
+    kind: 'load-balancer',
+    label: 'Load Balancer',
+    category: 'edge',
+    icon: 'Network',
+    shape: 'stadium',
+    description: 'Distribui carga entre instancias saudaveis.',
+    keywords: ['lb', 'alb', 'nlb', 'balanceador'],
+    fields: [
+      select('layer', 'Camada', ['L7 (HTTP)', 'L4 (TCP)']),
+      select('algorithm', 'Algoritmo', ['round-robin', 'least-connections', 'ip-hash', 'weighted', 'EWMA']),
+      text('healthCheck', 'Health check', 'GET /health a cada 5s'),
+    ],
+  },
+  {
+    kind: 'bff',
+    label: 'BFF',
+    category: 'edge',
+    icon: 'Layers',
+    shape: 'rect',
+    description: 'Backend for frontend: agrega chamadas por canal.',
+    keywords: ['agregador', 'backend for frontend'],
+    fields: [text('clients', 'Clientes atendidos', 'web + mobile'), text('runtime', 'Runtime', 'Node.js 22 + Fastify')],
+  },
+  {
+    kind: 'reverse-proxy',
+    label: 'Reverse Proxy',
+    category: 'edge',
+    icon: 'Shuffle',
+    shape: 'stadium',
+    description: 'Termina TLS e encaminha requisicoes internas.',
+    keywords: ['nginx', 'proxy', 'tls'],
+    fields: [text('provider', 'Provedor', 'NGINX'), text('tls', 'TLS', 'TLS 1.3 + mTLS interno')],
+  },
+
+  // -------------------------------------------------------------- aplicacao
+  {
+    kind: 'rest-api',
+    label: 'REST API',
+    category: 'compute',
+    icon: 'Server',
+    shape: 'rect',
+    description: 'Servico HTTP sincrono com recursos versionados.',
+    keywords: ['http', 'api', 'servico', 'endpoint'],
+    techHint: 'Node.js + NestJS / Fastify',
+    fields: [
+      text('basePath', 'Base path', '/api/v1/orders'),
+      text('runtime', 'Runtime', 'Node.js 22 + NestJS'),
+      text('slo', 'SLO', 'p99 < 200ms / 99.9%'),
+      area('endpoints', 'Principais endpoints', 'POST /orders\nGET /orders/:id'),
+    ],
+  },
+  {
+    kind: 'graphql-api',
+    label: 'GraphQL API',
+    category: 'compute',
+    icon: 'Braces',
+    shape: 'rect',
+    description: 'Schema unico com resolvers por dominio.',
+    keywords: ['graphql', 'apollo', 'schema'],
+    fields: [text('endpoint', 'Endpoint', '/graphql'), area('schema', 'Tipos principais', 'type Order { id: ID! ... }'), select('federation', 'Federacao', ['nao', 'Apollo Federation', 'schema stitching'])],
+  },
+  {
+    kind: 'grpc-service',
+    label: 'gRPC Service',
+    category: 'compute',
+    icon: 'Binary',
+    shape: 'rect',
+    description: 'RPC binario de baixa latencia entre servicos.',
+    keywords: ['grpc', 'rpc', 'protobuf'],
+    fields: [text('service', 'Servico', 'orders.v1.OrderService'), area('methods', 'Metodos', 'CreateOrder\nGetOrder'), select('streaming', 'Streaming', ['unary', 'server streaming', 'client streaming', 'bidirecional'])],
+  },
+  {
+    kind: 'websocket-server',
+    label: 'WebSocket Server',
+    category: 'compute',
+    icon: 'RadioTower',
+    shape: 'rect',
+    description: 'Canal persistente e bidirecional com o cliente.',
+    keywords: ['websocket', 'realtime', 'socket.io'],
+    fields: [text('channel', 'Canais', 'orders:{id}'), text('scaleOut', 'Escala horizontal', 'Redis adapter / sticky session'), text('maxConnections', 'Conexoes', '50k por no')],
+  },
+  {
+    kind: 'microservice',
+    label: 'Microservico',
+    category: 'compute',
+    icon: 'Boxes',
+    shape: 'rect',
+    description: 'Servico autonomo dono de um subdominio.',
+    keywords: ['servico', 'dominio', 'bounded context'],
+    fields: [text('domain', 'Subdominio', 'Pagamentos'), text('runtime', 'Runtime', 'Node.js 22'), text('owner', 'Time dono', 'squad-checkout')],
+  },
+  {
+    kind: 'worker',
+    label: 'Worker / Consumer',
+    category: 'compute',
+    icon: 'Cog',
+    shape: 'rect',
+    description: 'Processa mensagens fora do ciclo da requisicao.',
+    keywords: ['consumer', 'processador', 'background', 'job'],
+    fields: [
+      text('source', 'Fonte', 'orders.created (SQS)'),
+      text('concurrency', 'Concorrencia', '10 mensagens em paralelo'),
+      select('retry', 'Retentativa', ['exponential backoff', 'fixed delay', 'sem retry', 'retry + DLQ']),
+      select('idempotency', 'Idempotencia', ['chave de idempotencia', 'upsert', 'dedupe por event id', 'nao garantida']),
+    ],
+  },
+  {
+    kind: 'serverless',
+    label: 'Funcao Serverless',
+    category: 'compute',
+    icon: 'Zap',
+    shape: 'hexagon',
+    description: 'Computacao efemera disparada por evento.',
+    keywords: ['lambda', 'function', 'faas'],
+    fields: [select('trigger', 'Gatilho', ['HTTP', 'fila', 'evento', 'cron', 'stream']), text('memory', 'Memoria', '512MB'), text('timeout', 'Timeout', '30s')],
+  },
+  {
+    kind: 'saga-orchestrator',
+    label: 'Saga Orchestrator',
+    category: 'compute',
+    icon: 'Workflow',
+    shape: 'rect',
+    description: 'Coordena transacoes distribuidas e compensacoes.',
+    keywords: ['saga', 'transacao', 'compensacao', 'orquestrador'],
+    fields: [area('steps', 'Passos', 'reservar estoque -> cobrar -> emitir nota'), area('compensation', 'Compensacoes', 'estornar cobranca / liberar estoque'), select('style', 'Estilo', ['orquestrada', 'coreografada'])],
+  },
+  {
+    kind: 'monolith',
+    label: 'Monolito Modular',
+    category: 'compute',
+    icon: 'Container',
+    shape: 'rect',
+    description: 'Deploy unico com modulos bem separados.',
+    keywords: ['monolito', 'modular'],
+    fields: [text('runtime', 'Runtime', 'Node.js 22 + NestJS'), area('modules', 'Modulos', 'orders / billing / catalog')],
+  },
+
+  // ------------------------------------------------------------ agendamento
+  {
+    kind: 'cron-job',
+    label: 'Cron / Scheduler',
+    category: 'scheduling',
+    icon: 'CalendarClock',
+    shape: 'hexagon',
+    description: 'Dispara trabalho em uma expressao de tempo.',
+    keywords: ['cron', 'agendador', 'schedule', 'periodico'],
+    techHint: 'EventBridge Scheduler / node-cron / K8s CronJob',
+    defaults: { expression: '*/5 * * * *', timezone: 'America/Sao_Paulo' },
+    fields: [
+      text('expression', 'Expressao cron', '*/5 * * * *', 'min hora dia mes dia-da-semana'),
+      text('timezone', 'Timezone', 'America/Sao_Paulo'),
+      text('job', 'Trabalho executado', 'reprocessar pagamentos pendentes'),
+      select('lock', 'Exclusao mutua', ['lock distribuido (Redis)', 'leader election', 'advisory lock', 'sem lock']),
+    ],
+  },
+  {
+    kind: 'delayed-job',
+    label: 'Delayed / Retry Scheduler',
+    category: 'scheduling',
+    icon: 'Timer',
+    shape: 'hexagon',
+    description: 'Agenda execucoes futuras e retentativas.',
+    keywords: ['delay', 'retry', 'timer', 'bullmq'],
+    fields: [select('mechanism', 'Mecanismo', ['delayed queue', 'timer wheel', 'tabela de agendamento', 'EventBridge Scheduler']), text('granularity', 'Granularidade', '1s')],
+  },
+  {
+    kind: 'batch-job',
+    label: 'Batch / ETL',
+    category: 'scheduling',
+    icon: 'FileStack',
+    shape: 'rect',
+    description: 'Processamento em lote sobre uma janela de dados.',
+    keywords: ['batch', 'etl', 'lote', 'pipeline'],
+    fields: [text('window', 'Janela', 'D-1 completo'), text('source', 'Origem', 'replica de leitura'), text('sink', 'Destino', 'data warehouse')],
+  },
+
+  // ------------------------------------------------------------- mensageria
+  {
+    kind: 'queue',
+    label: 'Fila (Queue)',
+    category: 'messaging',
+    icon: 'Inbox',
+    shape: 'stadium',
+    description: 'Ponto-a-ponto: uma mensagem, um consumidor.',
+    keywords: ['fila', 'queue', 'sqs', 'rabbitmq', 'bullmq'],
+    techHint: 'SQS / RabbitMQ / BullMQ',
+    defaults: { broker: 'SQS', ordering: 'standard' },
+    fields: [
+      select('broker', 'Broker', ['SQS', 'RabbitMQ', 'BullMQ (Redis)', 'NATS', 'Azure Service Bus']),
+      text('name', 'Nome da fila', 'orders-created'),
+      select('ordering', 'Ordenacao', ['standard', 'FIFO', 'FIFO por chave']),
+      text('visibility', 'Visibility timeout', '30s'),
+      text('dlq', 'DLQ', 'orders-created-dlq apos 5 tentativas'),
+    ],
+  },
+  {
+    kind: 'topic',
+    label: 'Topico Pub/Sub',
+    category: 'messaging',
+    icon: 'Radio',
+    shape: 'stadium',
+    description: 'Fan-out: um evento, varios assinantes.',
+    keywords: ['topico', 'pubsub', 'sns', 'fanout'],
+    fields: [
+      select('broker', 'Broker', ['SNS', 'Google Pub/Sub', 'NATS', 'RabbitMQ (fanout)', 'Kafka']),
+      text('name', 'Nome do topico', 'order.events'),
+      area('subscribers', 'Assinantes', 'billing-worker\nnotification-worker'),
+      select('delivery', 'Entrega', ['at-least-once', 'at-most-once', 'exactly-once (efetivo)']),
+    ],
+  },
+  {
+    kind: 'event-stream',
+    label: 'Event Stream',
+    category: 'messaging',
+    icon: 'Waves',
+    shape: 'stadium',
+    description: 'Log particionado e reprocessavel de eventos.',
+    keywords: ['kafka', 'stream', 'log', 'kinesis'],
+    fields: [
+      select('broker', 'Plataforma', ['Kafka', 'Redpanda', 'Kinesis', 'Pulsar']),
+      text('topic', 'Topico', 'orders.v1'),
+      text('partitions', 'Particoes', '12 (chave = orderId)'),
+      text('retention', 'Retencao', '7 dias'),
+      select('semantics', 'Semantica', ['at-least-once', 'exactly-once', 'at-most-once']),
+    ],
+  },
+  {
+    kind: 'event-bus',
+    label: 'Event Bus',
+    category: 'messaging',
+    icon: 'Share2',
+    shape: 'stadium',
+    description: 'Roteia eventos por regras entre dominios.',
+    keywords: ['bus', 'eventbridge', 'roteamento'],
+    fields: [text('bus', 'Barramento', 'EventBridge'), area('rules', 'Regras', 'detail-type = OrderPaid -> billing')],
+  },
+  {
+    kind: 'dlq',
+    label: 'Dead Letter Queue',
+    category: 'messaging',
+    icon: 'TriangleAlert',
+    shape: 'stadium',
+    description: 'Retem mensagens que falharam apos as retentativas.',
+    keywords: ['dlq', 'erro', 'falha'],
+    fields: [text('source', 'Fila de origem', 'orders-created'), text('retention', 'Retencao', '14 dias'), text('alarm', 'Alarme', 'CloudWatch > 0 mensagens por 5min')],
+  },
+  {
+    kind: 'outbox',
+    label: 'Transactional Outbox',
+    category: 'messaging',
+    icon: 'PackageOpen',
+    shape: 'rect',
+    description: 'Garante publicacao atomica junto da transacao.',
+    keywords: ['outbox', 'cdc', 'debezium', 'atomicidade'],
+    fields: [text('table', 'Tabela', 'outbox_messages'), select('publisher', 'Publicador', ['polling publisher', 'CDC (Debezium)', 'log tailing']), text('interval', 'Intervalo', '500ms')],
+  },
+
+  // ------------------------------------------------------------------ dados
+  {
+    kind: 'sql-database',
+    label: 'Banco Relacional',
+    category: 'data',
+    icon: 'Database',
+    shape: 'cylinder',
+    description: 'Fonte da verdade transacional (ACID).',
+    keywords: ['postgres', 'mysql', 'sql', 'banco', 'rdbms'],
+    techHint: 'PostgreSQL',
+    defaults: { engine: 'PostgreSQL' },
+    fields: [
+      select('engine', 'Engine', ['PostgreSQL', 'MySQL', 'SQL Server', 'Oracle', 'CockroachDB']),
+      area('tables', 'Tabelas chave', 'orders / order_items / outbox_messages'),
+      select('replication', 'Replicacao', ['primaria + replica de leitura', 'multi-AZ', 'single node', 'sharding por tenant']),
+      select('isolation', 'Isolamento', ['read committed', 'repeatable read', 'serializable']),
+    ],
+  },
+  {
+    kind: 'nosql-database',
+    label: 'Banco NoSQL',
+    category: 'data',
+    icon: 'DatabaseZap',
+    shape: 'cylinder',
+    description: 'Documento, chave-valor ou wide-column.',
+    keywords: ['mongo', 'dynamo', 'cassandra', 'nosql'],
+    fields: [
+      select('engine', 'Engine', ['MongoDB', 'DynamoDB', 'Cassandra', 'ScyllaDB', 'Firestore']),
+      text('partitionKey', 'Chave de particao', 'tenantId#orderId'),
+      select('consistency', 'Consistencia', ['eventual', 'forte', 'leitura forte opcional']),
+    ],
+  },
+  {
+    kind: 'cache',
+    label: 'Cache',
+    category: 'data',
+    icon: 'MemoryStick',
+    shape: 'cylinder',
+    description: 'Camada quente para reduzir latencia e carga.',
+    keywords: ['redis', 'cache', 'memcached'],
+    defaults: { engine: 'Redis', strategy: 'cache-aside' },
+    fields: [
+      select('engine', 'Engine', ['Redis', 'Valkey', 'Memcached', 'cache local']),
+      select('strategy', 'Estrategia', ['cache-aside', 'read-through', 'write-through', 'write-behind']),
+      text('ttl', 'TTL', '60s'),
+      select('eviction', 'Eviction', ['allkeys-lru', 'volatile-ttl', 'noeviction']),
+    ],
+  },
+  {
+    kind: 'search-engine',
+    label: 'Search Engine',
+    category: 'data',
+    icon: 'Search',
+    shape: 'cylinder',
+    description: 'Indice invertido para busca e agregacoes.',
+    keywords: ['elastic', 'opensearch', 'busca'],
+    fields: [select('engine', 'Engine', ['Elasticsearch', 'OpenSearch', 'Meilisearch', 'Typesense']), text('index', 'Indice', 'orders-v2'), select('sync', 'Sincronizacao', ['via evento', 'CDC', 'reindex batch'])],
+  },
+  {
+    kind: 'object-storage',
+    label: 'Object Storage',
+    category: 'data',
+    icon: 'HardDrive',
+    shape: 'cylinder',
+    description: 'Arquivos, midias e artefatos grandes.',
+    keywords: ['s3', 'blob', 'arquivo', 'bucket'],
+    fields: [select('provider', 'Provedor', ['S3', 'GCS', 'Azure Blob', 'MinIO']), text('bucket', 'Bucket', 'invoices-prod'), text('lifecycle', 'Lifecycle', 'glacier apos 90 dias')],
+  },
+  {
+    kind: 'data-warehouse',
+    label: 'Data Warehouse',
+    category: 'data',
+    icon: 'Warehouse',
+    shape: 'cylinder',
+    description: 'Analitico: consultas pesadas fora do transacional.',
+    keywords: ['bigquery', 'analytics', 'olap', 'warehouse'],
+    fields: [select('engine', 'Engine', ['BigQuery', 'Redshift', 'Snowflake', 'ClickHouse']), text('dataset', 'Dataset', 'analytics.orders')],
+  },
+  {
+    kind: 'vector-database',
+    label: 'Vector Database',
+    category: 'data',
+    icon: 'Brain',
+    shape: 'cylinder',
+    description: 'Embeddings para busca semantica e RAG.',
+    keywords: ['vetorial', 'embedding', 'rag', 'pgvector'],
+    fields: [select('engine', 'Engine', ['pgvector', 'Qdrant', 'Pinecone', 'Weaviate']), text('dimensions', 'Dimensoes', '1536'), select('metric', 'Metrica', ['cosine', 'dot product', 'euclidean'])],
+  },
+
+  // -------------------------------------------------------- observabilidade
+  {
+    kind: 'log-aggregator',
+    label: 'Logs Centralizados',
+    category: 'observability',
+    icon: 'ScrollText',
+    shape: 'rect',
+    description: 'Log estruturado com correlation id.',
+    keywords: ['log', 'loki', 'datadog'],
+    fields: [text('tool', 'Ferramenta', 'Loki / Datadog'), text('retention', 'Retencao', '30 dias'), text('correlation', 'Correlacao', 'x-correlation-id propagado')],
+  },
+  {
+    kind: 'metrics',
+    label: 'Metricas',
+    category: 'observability',
+    icon: 'Activity',
+    shape: 'rect',
+    description: 'Series temporais de saude e negocio.',
+    keywords: ['prometheus', 'metrica', 'grafana'],
+    fields: [text('tool', 'Ferramenta', 'Prometheus + Grafana'), area('golden', 'Sinais', 'latencia / trafego / erros / saturacao')],
+  },
+  {
+    kind: 'tracing',
+    label: 'Tracing Distribuido',
+    category: 'observability',
+    icon: 'Route',
+    shape: 'rect',
+    description: 'Rastro da requisicao entre servicos.',
+    keywords: ['trace', 'otel', 'jaeger'],
+    fields: [text('tool', 'Ferramenta', 'OpenTelemetry + Tempo'), text('sampling', 'Amostragem', '10% + 100% em erro')],
+  },
+  {
+    kind: 'alerting',
+    label: 'Alertas / On-call',
+    category: 'observability',
+    icon: 'BellRing',
+    shape: 'rect',
+    description: 'Dispara acao humana quando o SLO quebra.',
+    keywords: ['alerta', 'pagerduty', 'oncall'],
+    fields: [text('tool', 'Ferramenta', 'PagerDuty'), area('rules', 'Regras', 'error budget burn rate > 2x por 10min')],
+  },
+
+  // ---------------------------------------------------------------- seguranca
+  {
+    kind: 'auth-service',
+    label: 'Auth / Identity',
+    category: 'security',
+    icon: 'KeyRound',
+    shape: 'rect',
+    description: 'Emite e valida identidades e tokens.',
+    keywords: ['auth', 'oauth', 'keycloak', 'identidade', 'jwt'],
+    fields: [select('protocol', 'Protocolo', ['OAuth2 / OIDC', 'JWT proprio', 'SAML', 'mTLS']), text('provider', 'Provedor', 'Keycloak / Cognito'), text('tokenTtl', 'TTL do token', 'access 15min / refresh 7d')],
+  },
+  {
+    kind: 'secret-manager',
+    label: 'Secret Manager',
+    category: 'security',
+    icon: 'Lock',
+    shape: 'rect',
+    description: 'Guarda credenciais com rotacao.',
+    keywords: ['secret', 'vault', 'credencial'],
+    fields: [text('provider', 'Provedor', 'Vault / AWS Secrets Manager'), text('rotation', 'Rotacao', 'a cada 30 dias')],
+  },
+  {
+    kind: 'rate-limiter',
+    label: 'Rate Limiter',
+    category: 'security',
+    icon: 'Gauge',
+    shape: 'stadium',
+    description: 'Protege o sistema contra picos e abuso.',
+    keywords: ['throttle', 'limite', 'quota'],
+    fields: [select('algorithm', 'Algoritmo', ['token bucket', 'leaky bucket', 'sliding window', 'fixed window']), text('limit', 'Limite', '100 req/min por cliente'), text('store', 'Estado', 'Redis compartilhado')],
+  },
+  {
+    kind: 'feature-flags',
+    label: 'Feature Flags',
+    category: 'security',
+    icon: 'ToggleRight',
+    shape: 'rect',
+    description: 'Liga e desliga comportamento em runtime.',
+    keywords: ['flag', 'toggle', 'rollout'],
+    fields: [text('provider', 'Provedor', 'Unleash / LaunchDarkly'), area('flags', 'Flags', 'new-checkout (rollout 10%)')],
+  },
+  {
+    kind: 'config-service',
+    label: 'Config Service',
+    category: 'security',
+    icon: 'SlidersHorizontal',
+    shape: 'rect',
+    description: 'Configuracao centralizada por ambiente.',
+    keywords: ['config', 'parametro', 'consul'],
+    fields: [text('provider', 'Provedor', 'Consul / AppConfig'), text('refresh', 'Refresh', 'hot reload a cada 30s')],
+  },
+  {
+    kind: 'waf',
+    label: 'WAF',
+    category: 'security',
+    icon: 'ShieldCheck',
+    shape: 'stadium',
+    description: 'Filtra trafego malicioso antes da borda.',
+    keywords: ['firewall', 'seguranca', 'ddos'],
+    fields: [text('provider', 'Provedor', 'Cloudflare / AWS WAF'), area('rules', 'Regras', 'OWASP top 10 + bot score')],
+  },
+];
+
+export const COMPONENT_BY_KIND = new Map(COMPONENTS.map((c) => [c.kind, c]));
+
+export function getComponentSpec(kind: string): ComponentSpec {
+  return COMPONENT_BY_KIND.get(kind) ?? COMPONENTS[0];
+}
+
+export function accentOf(kind: string): string {
+  const spec = COMPONENT_BY_KIND.get(kind);
+  return CATEGORY_BY_ID.get(spec?.category ?? 'compute')?.accent ?? '#34d399';
+}
+
+export function searchComponents(term: string): ComponentSpec[] {
+  const q = term.trim().toLowerCase();
+  if (!q) return COMPONENTS;
+  return COMPONENTS.filter((c) =>
+    [c.label, c.description, c.kind, ...(c.keywords ?? [])].join(' ').toLowerCase().includes(q),
+  );
+}
